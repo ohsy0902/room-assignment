@@ -128,8 +128,9 @@ function handleRoomDrop(targetDormitory, targetFloor, targetRoom) {
     }
 
     // Check if student can be assigned to this room (avoiding conflicts)
-    if (!canAssignToRoom(draggedStudent.name, room)) {
-        showToast('기피학생이 같은 방에 배정되어 있습니다', 'warning');
+    const check = canAssignToRoom(draggedStudent.name, room);
+    if (!check.success) {
+        showToast(check.reason, 'warning');
         renderAll();
         updateStats();
         return;

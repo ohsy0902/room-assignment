@@ -95,14 +95,31 @@
                 <button class="tab-btn" data-dormitory="singwan">명덕재</button>
             </div>
 
-            <!-- Floor Selection -->
-            <div class="floor-selection" id="floorSelection">
-                <!-- Dynamically populated based on selected dormitory -->
+            <!-- Floor configuration bar (selection + gender config + layout config) -->
+            <div class="floor-config-row">
+                <div class="floor-selection-container">
+                    <span class="floor-label">층 선택:</span>
+                    <div class="floor-selection" id="floorSelection">
+                        <!-- Dynamically populated based on selected dormitory -->
+                    </div>
+                </div>
+                <div class="floor-controls-container">
+                    <div class="floor-gender-config" id="floorGenderConfig">
+                        <span class="floor-control-label">현재 층 성별:</span>
+                        <div class="floor-gender-btns">
+                            <button class="floor-gender-btn active" data-gender="mixed">제한 없음</button>
+                            <button class="floor-gender-btn male" data-gender="남">남학생</button>
+                            <button class="floor-gender-btn female" data-gender="여">여학생</button>
+                        </div>
+                    </div>
+                    <button id="floorLayoutBtn" class="btn btn-secondary btn-sm">📐 층 레이아웃 일괄 설정</button>
+                </div>
             </div>
 
             <!-- Info Text -->
             <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: var(--spacing-lg);">
-                💡 <strong>팁:</strong> 호실을 클릭하면 성별 지정이 순환됩니다 (제한없음 → 남자 → 여자)
+                💡 <strong>팁:</strong> 각 층의 성별을 설정하면 해당 층의 모든 호실 성별이 제한됩니다. 호실 우측의 자(📐) 버튼을 누르거나 호실 카드를 클릭하면 개별 학년
+                레이아웃을 설정할 수 있습니다.
             </p>
 
             <!-- Room Grid -->
@@ -155,15 +172,87 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Floating Action Bar for Room Selection -->
-    <div class="floating-action-bar" id="floatingActionBar">
-        <span class="selection-count">0개 호실 선택됨</span>
-        <div class="action-buttons">
-            <button class="action-btn male" data-gender="남">남학생 전용</button>
-            <button class="action-btn female" data-gender="여">여학생 전용</button>
-            <button class="action-btn mixed" data-gender="mixed">제한 없음</button>
+
+
+    <!-- Layout Config Modal -->
+    <div id="layoutModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 id="layoutModalTitle">호실 구성원 레이아웃 설정</h3>
+                <button class="close-modal-btn" id="closeLayoutModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <!-- Preset Layouts -->
+                <div class="modal-section">
+                    <h4>💡 기본 레이아웃 선택</h4>
+                    <div style="height: var(--spacing-xs);"></div>
+                    <div class="preset-buttons">
+                        <button class="preset-btn" data-layout="1,1,2,2">1학년 2명 + 2학년 2명</button>
+                        <button class="preset-btn" data-layout="1,1,3,3">1학년 2명 + 3학년 2명</button>
+                        <button class="preset-btn" data-layout="2,2,3,3">2학년 2명 + 3학년 2명</button>
+                    </div>
+                </div>
+
+                <!-- Drag and Drop Layout Builder -->
+                <div class="modal-section">
+                    <h4>📐 드래그 앤 드롭으로 구성 (최대 4명)</h4>
+                    <p class="section-desc">학년 블록을 아래 슬롯으로 드래그하거나 클릭하여 배치 목록에 추가하세요.</p>
+
+                    <!-- Source Blocks -->
+                    <div class="builder-sources">
+                        <div class="grade-source-block" draggable="true" data-grade="1">1학년</div>
+                        <div class="grade-source-block" draggable="true" data-grade="2">2학년</div>
+                        <div class="grade-source-block" draggable="true" data-grade="3">3학년</div>
+                    </div>
+
+                    <!-- Target Slots Container -->
+                    <div class="builder-slots-container" id="builderSlotsContainer">
+                        <!-- Up to 4 slots dynamically rendered -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetLayoutModalBtn">초기화</button>
+                <div style="display: flex; gap: var(--spacing-sm);">
+                    <button class="btn btn-secondary" id="cancelLayoutModalBtn">취소</button>
+                    <button class="btn btn-primary" id="saveLayoutModalBtn">저장</button>
+                </div>
+            </div>
         </div>
-        <button class="close-action-bar" id="clearSelectionBtn">✕</button>
+    </div>
+
+
+    <!-- Force Assign Config Modal -->
+    <div id="forceAssignModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>⚠️ 배정 불가 학생 발생 안내</h3>
+                <button class="close-modal-btn" id="closeForceAssignModalBtn">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="section-desc">다음 학생들은 기숙사 배치 조건(성별 규칙, 학년 레이아웃 배분, 기피학생 등)을 모두 만족하는 빈 호실을 찾지 못해 배정에서 제외되었습니다.
+                </p>
+
+                <div id="conflictStudentsList"
+                    style="max-height: 200px; overflow-y: auto; background: var(--background); padding: var(--spacing-sm); border-radius: var(--radius-md); border: 1px solid var(--border); font-size: 0.85rem;">
+                    <!-- Javascript populates this -->
+                </div>
+
+                <p class="section-desc"
+                    style="margin-top: var(--spacing-md); font-weight: bold; color: var(--accent-orange);">
+                    선택 사항:<br>
+                    - <b>미배치로 남겨두기:</b> 이 학생들을 수동으로 직접 배정합니다.<br>
+                    - <b>조건 무시 강제 배정:</b> 학년 레이아웃이나 기피학생 등 충돌 조건을 무시하고 남은 빈 자리에 무작위로 배정합니다. (단, 성별 규칙은 준수)
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="skipForceAssignBtn">미배치로 남겨두기</button>
+                <div style="display: flex; gap: var(--spacing-sm);">
+                    <button class="btn btn-primary" id="proceedForceAssignBtn"
+                        style="background: var(--accent-orange); border: none;">조건 무시 강제 배정 실행</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- External Libraries -->
@@ -173,7 +262,7 @@
     <!-- Application Scripts -->
     <script src="fileHandler.js"></script>
     <script src="exportData.js"></script>
-    <script src="selectionHandler.js"></script> <!-- New script for selection -->
+    <script src="layoutHandler.js"></script> <!-- New layout handler instead of selection -->
     <script src="app.js"></script>
     <script src="assignmentEngine.js"></script>
     <script src="uiRenderer.js"></script>

@@ -83,12 +83,47 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         roomNumber.appendChild(badge);
     }
 
+    // Capacity & Layout Button Container
+    const capacityContainer = document.createElement('div');
+    capacityContainer.className = 'room-capacity-container';
+    capacityContainer.style.display = 'flex';
+    capacityContainer.style.alignItems = 'center';
+    capacityContainer.style.gap = 'var(--spacing-xs)';
+
+    const layoutBtn = document.createElement('button');
+    layoutBtn.className = 'room-layout-btn';
+    layoutBtn.innerHTML = '📐';
+    layoutBtn.title = '호실 학년 구성 레이아웃 설정';
+    layoutBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof openLayoutModal === 'function') {
+            openLayoutModal('room', { dormitory: dormitoryKey, floor: floorNum, roomNum: room.number });
+        }
+    });
+
     const capacity = document.createElement('div');
     capacity.className = 'room-capacity';
     capacity.textContent = `${room.students.length}/${room.capacity}`;
 
+    capacityContainer.appendChild(layoutBtn);
+    capacityContainer.appendChild(capacity);
+
     header.appendChild(roomNumber);
-    header.appendChild(capacity);
+    header.appendChild(capacityContainer);
+
+    card.appendChild(header);
+
+    // Layout representation info (e.g. 1학년 2명, 2학년 2명)
+    if (room.layout && room.layout.length > 0) {
+        const layoutBadge = document.createElement('div');
+        layoutBadge.className = 'room-layout-badge';
+
+        const counts = {};
+        room.layout.forEach(g => counts[g] = (counts[g] || 0) + 1);
+        const text = Object.entries(counts).map(([g, c]) => `${g}학년×${c}`).join(', ');
+        layoutBadge.innerHTML = `<span style="font-size: 0.8rem;">📐</span> ${text}`;
+        card.appendChild(layoutBadge);
+    }
 
     // Students
     const studentsContainer = document.createElement('div');
@@ -99,18 +134,15 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         studentsContainer.appendChild(studentCard);
     }
 
-    card.appendChild(header);
     card.appendChild(studentsContainer);
 
-    // Click handler for gender cycling (only if not dragging)
+    // Click anywhere on room card (except student-card or layout button) opens layout modal
     card.addEventListener('click', (e) => {
-        // Prevent triggering if clicking on a student card or if selecting
         if (e.target.closest('.student-card')) return;
-        if (typeof isSelecting !== 'undefined' && isSelecting) return;
+        if (e.target.closest('.room-layout-btn')) return;
 
-        // Simple check: if no selection box is active and we are not in a multi-select mode
-        if (typeof toggleRoomGender === 'function') {
-            toggleRoomGender(room.number);
+        if (typeof openLayoutModal === 'function') {
+            openLayoutModal('room', { dormitory: dormitoryKey, floor: floorNum, roomNum: room.number });
         }
     });
 

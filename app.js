@@ -58,14 +58,18 @@ function initializeDormitories() {
         for (const [floorNum, floorConfig] of Object.entries(dormConfig.floors)) {
             AppState.dormitories[dormKey].floors[floorNum] = {
                 number: parseInt(floorNum),
-                rooms: {}
+                rooms: {},
+                gender: 'mixed',
+                defaultLayout: null
             };
 
             for (const roomNum of floorConfig.rooms) {
                 AppState.dormitories[dormKey].floors[floorNum].rooms[roomNum] = {
                     number: roomNum,
                     capacity: 4,
-                    students: []
+                    students: [],
+                    gender: 'mixed',
+                    layout: null
                 };
             }
         }
@@ -162,9 +166,7 @@ function handleTabClick(e) {
         const firstFloor = Object.keys(DORM_CONFIG[dormitory].floors)[0];
         AppState.currentFloor = firstFloor;
         renderRoomGrid(dormitory, firstFloor);
-
-        // Clear selection when changing tabs
-        if (typeof clearSelection === 'function') clearSelection();
+        updateFloorGenderButtons();
     }
 }
 
@@ -176,9 +178,7 @@ function handleFloorClick(e) {
         const floor = e.target.dataset.floor;
         AppState.currentFloor = floor;
         renderRoomGrid(AppState.currentDormitory, floor);
-
-        // Clear selection when changing floors
-        if (typeof clearSelection === 'function') clearSelection();
+        updateFloorGenderButtons();
     }
 }
 
@@ -212,7 +212,7 @@ function handleAssignScopeChange(e) {
     }
 }
 
-function handleAutoAssign() {
+async function handleAutoAssign() {
     if (AppState.students.length === 0) {
         showToast('명렬표를 먼저 업로드해주세요', 'warning');
         return;
@@ -223,18 +223,20 @@ function handleAutoAssign() {
 
     showLoading(true);
 
-    setTimeout(() => {
-        try {
-            autoAssign(scope, target);
-            renderAll();
-            updateStats();
-            showToast('자동 배치가 완료되었습니다', 'success');
-        } catch (error) {
-            showToast(`배치 중 오류 발생: ${error.message}`, 'error');
-        } finally {
-            showLoading(false);
-        }
-    }, 100);
+    try {
+        // UI 반영을 위해 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        await autoAssign(scope, target);
+
+        renderAll();
+        updateStats();
+        showToast('자동 배치가 완료되었습니다', 'success');
+    } catch (error) {
+        showToast(`배치 중 오류 발생: ${error.message}`, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 function handleReset() {
@@ -315,6 +317,52 @@ function renderAll() {
     renderUnassignedList();
 }
 
+// ===== Floor Controls Helper Functions =====
+function setFloorGender(dormitory, floorNum, gender) {
+    const floor = AppState.dormitories[dormitory].floors[floorNum];
+    if (!floor) return;
+
+    floor.gender = gender;
+
+    // Apply floor gender to all rooms on this floor
+    for (const roomNum in floor.rooms) {
+        floor.rooms[roomNum].gender = gender;
+    }
+
+    // Check for existing gender mismatches
+    let hasConflict = false;
+    for (const roomNum in floor.rooms) {
+        const room = floor.rooms[roomNum];
+        if (room.students.some(s => gender !== 'mixed' && s.gender !== gender)) {
+            hasConflict = true;
+        }
+    }
+
+    if (hasConflict) {
+        showToast('일부 호실에 새로운 층 성별 설정과 일치하지 않는 기존 학생이 이미 배치되어 있습니다! 배치를 확인해 주세요.', 'warning');
+    } else {
+        const genderText = gender === '남' ? '남학생 전용' : gender === '여' ? '여학생 전용' : '제한 없음';
+        showToast(`${floorNum}층 모든 호실을 ${genderText}으로 설정했습니다.`, 'success');
+    }
+
+    renderRoomGrid(dormitory, floorNum);
+    updateFloorGenderButtons();
+}
+
+function updateFloorGenderButtons() {
+    const floorConfig = AppState.dormitories[AppState.currentDormitory];
+    if (!floorConfig) return;
+    const floor = floorConfig.floors[AppState.currentFloor];
+    const floorGender = (floor && floor.gender) ? floor.gender : 'mixed';
+
+    document.querySelectorAll('.floor-gender-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.gender === floorGender) {
+            btn.classList.add('active');
+        }
+    });
+}
+
 // ===== Initialization =====
 function init() {
     initializeDormitories();
@@ -330,21 +378,31 @@ function init() {
     document.getElementById('resetBtn').addEventListener('click', handleReset);
     document.getElementById('exportBtn').addEventListener('click', handleExport);
 
+    // Floor controls (Gender buttons & Layout button)
+    document.querySelectorAll('.floor-gender-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const gender = e.currentTarget.dataset.gender;
+            setFloorGender(AppState.currentDormitory, AppState.currentFloor, gender);
+        });
+    });
+
+    document.getElementById('floorLayoutBtn').addEventListener('click', () => {
+        if (typeof openLayoutModal === 'function') {
+            openLayoutModal('floor', { dormitory: AppState.currentDormitory, floor: AppState.currentFloor });
+        }
+    });
+
     // Filter Listeners
     document.getElementById('filterGrade').addEventListener('change', handleFilterChange);
     document.getElementById('filterGender').addEventListener('change', handleFilterChange);
 
     setupFileInputs();
 
-    // Initialize Selection Handler
-    if (typeof initSelectionHandler === 'function') {
-        initSelectionHandler();
-    }
-
     // Initial render
     AppState.currentFloor = '1';
     renderFloorSelection('albatross');
     renderRoomGrid('albatross', '1');
+    updateFloorGenderButtons();
     updateStats();
 }
 
@@ -354,3 +412,57 @@ if (document.readyState === 'loading') {
 } else {
     init();
 }
+
+// ===== Modals =====
+window.showForceAssignModal = function (conflictStudents) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('forceAssignModal');
+        const listDiv = document.getElementById('conflictStudentsList');
+
+        listDiv.innerHTML = '';
+        conflictStudents.forEach(item => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            div.style.paddingBottom = '8px';
+            div.style.borderBottom = '1px solid var(--border-light)';
+
+            const nameSpan = document.createElement('strong');
+            nameSpan.textContent = `${item.student.name} (${item.student.grade || '?'}학년, ${item.student.gender || '?'})`;
+
+            const reasonSpan = document.createElement('div');
+            reasonSpan.style.color = 'var(--accent-orange)';
+            reasonSpan.style.fontSize = '0.8rem';
+            reasonSpan.style.marginTop = '4px';
+
+            let reasons = item.reasons;
+            if (reasons.length === 0) reasons = ['배치 가능한 요건이 없거나 남은 자리가 부족함'];
+
+            const uniqueReasons = [...new Set(reasons)].slice(0, 3);
+            reasonSpan.textContent = `불가 사유: ${uniqueReasons.join(', ')}${reasons.length > 3 ? ' 등' : ''}`;
+
+            div.appendChild(nameSpan);
+            div.appendChild(reasonSpan);
+            listDiv.appendChild(div);
+        });
+
+        modal.style.display = 'flex';
+
+        const closeBtn = document.getElementById('closeForceAssignModalBtn');
+        const skipBtn = document.getElementById('skipForceAssignBtn');
+        const proceedBtn = document.getElementById('proceedForceAssignBtn');
+
+        const cleanup = () => {
+            closeBtn.removeEventListener('click', onSkip);
+            skipBtn.removeEventListener('click', onSkip);
+            proceedBtn.removeEventListener('click', onProceed);
+            modal.style.display = 'none';
+        };
+
+        const onSkip = () => { cleanup(); resolve('skip'); };
+        const onProceed = () => { cleanup(); resolve('force'); };
+
+        closeBtn.addEventListener('click', onSkip);
+        skipBtn.addEventListener('click', onSkip);
+        proceedBtn.addEventListener('click', onProceed);
+    });
+};

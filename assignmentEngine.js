@@ -1,11 +1,11 @@
 // ===== Auto Assignment Engine =====
 
-function autoAssign(scope, target) {
+async function autoAssign(scope, target) {
     // Step 1: Assign preferred groups first
     assignPreferredGroups(scope, target);
 
     // Step 2: Assign remaining students
-    assignRemainingStudents(scope, target);
+    await assignRemainingStudents(scope, target);
 }
 
 function assignPreferredGroups(scope, target) {
@@ -35,15 +35,40 @@ function assignPreferredGroups(scope, target) {
                 // Check if all students can be assigned together (no conflicts)
                 let canAssign = true;
 
-                // Check existing students in the room
+                // Check existing students in the room (gender & avoided)
                 for (const student of students) {
-                    if (!canAssignToRoom(student.name, room)) {
+                    if (!canAssignToRoom(student.name, room).success) {
                         canAssign = false;
                         break;
                     }
                 }
 
-                // Check among the group members themselves
+                // Check layout constraint for the whole group together
+                if (canAssign && room.layout && room.layout.length > 0) {
+                    // Count allowed per grade from layout
+                    const allowedCounts = {};
+                    room.layout.forEach(g => allowedCounts[g] = (allowedCounts[g] || 0) + 1);
+
+                    // Count currently assigned per grade
+                    const currentCounts = {};
+                    room.students.forEach(s => currentCounts[s.grade] = (currentCounts[s.grade] || 0) + 1);
+
+                    // Count group members per grade
+                    const groupCounts = {};
+                    students.forEach(s => groupCounts[s.grade] = (groupCounts[s.grade] || 0) + 1);
+
+                    // Check if adding the group would exceed layout limits
+                    for (const grade in groupCounts) {
+                        const allowed = allowedCounts[grade] || 0;
+                        const current = currentCounts[grade] || 0;
+                        if (current + groupCounts[grade] > allowed) {
+                            canAssign = false;
+                            break;
+                        }
+                    }
+                }
+
+                // Check among the group members themselves (avoided pairs)
                 if (canAssign) {
                     for (let i = 0; i < students.length; i++) {
                         for (let j = i + 1; j < students.length; j++) {
@@ -75,11 +100,13 @@ function assignPreferredGroups(scope, target) {
     }
 }
 
-function assignRemainingStudents(scope, target) {
+async function assignRemainingStudents(scope, target) {
     const unassignedStudents = getUnassignedStudents();
 
     // Shuffle for fairness
     shuffleArray(unassignedStudents);
+
+    const conflictStudents = [];
 
     for (const student of unassignedStudents) {
         // Check filters
@@ -89,6 +116,7 @@ function assignRemainingStudents(scope, target) {
 
         let assigned = false;
         let hasConflict = false;
+        let reasons = new Set();
 
         // Try to assign to a room
         for (const roomInfo of availableRooms) {
@@ -97,33 +125,86 @@ function assignRemainingStudents(scope, target) {
             if (room.students.length >= room.capacity) continue;
 
             // Check if student can be assigned to this room
-            if (canAssignToRoom(student.name, room)) {
+            const check = canAssignToRoom(student.name, room);
+            if (check.success) {
                 assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
                 assigned = true;
                 break;
             } else {
                 hasConflict = true;
+                reasons.add(check.reason);
             }
         }
 
-        // If not assigned due to conflicts and no possible rooms
-        if (!assigned && hasConflict) {
-            console.warn(`기피학생 제약으로 ${student.name}을(를) 배정할 수 없습니다. 강제 배정합니다.`);
+        // 현재 남은 자리가 있는지(전체 가용석) 확인
+        const currentRooms = getAvailableRooms(scope, target);
+        let hasRoomSpace = currentRooms.some(r => {
+            const rm = AppState.dormitories[r.dormitory].floors[r.floor].rooms[r.room];
+            return rm.students.length < rm.capacity;
+        });
 
-            // Force assign to any available room (still respecting gender if possible)
-            for (const roomInfo of availableRooms) {
-                const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
+        // If not assigned but space exists, we have a conflict
+        // If hasConflict is true, it means we tried rooms but none accepted
+        if (!assigned && (hasConflict || hasRoomSpace)) {
+            conflictStudents.push({
+                student,
+                reasons: Array.from(reasons)
+            });
+        }
+    }
 
-                if (room.students.length < room.capacity) {
-                    // Check gender constraint only for forced assignment
+    if (conflictStudents.length > 0) {
+        // Hide loader to allow interaction
+        if (typeof showLoading === 'function') showLoading(false);
+
+        // Show modal and wait for choice
+        const choice = await window.showForceAssignModal(conflictStudents);
+
+        // Restore loader
+        if (typeof showLoading === 'function') showLoading(true);
+
+        if (choice === 'force') {
+            for (const conflict of conflictStudents) {
+                const student = conflict.student;
+                const availableRooms = getAvailableRooms(scope, target);
+                let assigned = false;
+
+                // Stage 1: 무시할 조건 - 기피학생. 성별, 레이아웃 존중 시도.
+                for (const roomInfo of availableRooms) {
+                    const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
+                    if (room.students.length >= room.capacity) continue;
+
                     if (room.gender && room.gender !== 'mixed') {
-                        const s = findStudent(student.name);
-                        if (s && s.gender && s.gender !== room.gender) continue;
+                        if (student.gender && student.gender !== room.gender) continue;
+                    }
+
+                    if (room.layout && room.layout.length > 0) {
+                        const grade = student.grade;
+                        const allowedCount = room.layout.filter(g => g === grade).length;
+                        const currentCount = room.students.filter(s => s.grade === grade).length;
+                        if (currentCount >= allowedCount) continue;
                     }
 
                     assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
                     assigned = true;
                     break;
+                }
+
+                // Stage 2: Stage 1 실패 시. 기피 무시, 레이아웃 무시. 단, 성별만 존중
+                if (!assigned) {
+                    for (const roomInfo of availableRooms) {
+                        const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
+                        if (room.students.length >= room.capacity) continue;
+
+                        // 성별은 무조건 체크 (남녀 혼숙 불가)
+                        if (room.gender && room.gender !== 'mixed') {
+                            if (student.gender && student.gender !== room.gender) continue;
+                        }
+
+                        assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
+                        assigned = true;
+                        break;
+                    }
                 }
             }
         }
@@ -206,16 +287,27 @@ function matchesFilters(student) {
 
 function canAssignToRoom(studentName, room) {
     const student = findStudent(studentName);
-    if (!student) return false;
+    if (!student) return { success: false, reason: '학생을 찾을 수 없습니다' };
 
     // 1. Check Room Gender Constraint
     if (room.gender && room.gender !== 'mixed') {
         if (student.gender && student.gender !== room.gender) {
-            return false;
+            return { success: false, reason: `이 호실은 ${room.gender}학생 전용입니다 (학생 성별: ${student.gender})` };
         }
     }
 
-    // 2. Check Avoided Students
+    // 2. Check Grade Layout Constraint
+    if (room.layout && room.layout.length > 0) {
+        const grade = student.grade;
+        const allowedCount = room.layout.filter(g => g === grade).length;
+        const currentCount = room.students.filter(s => s.grade === grade).length;
+
+        if (currentCount >= allowedCount) {
+            return { success: false, reason: `호실 레이아웃에 배치 가능한 ${grade}학년 자리가 없습니다` };
+        }
+    }
+
+    // 3. Check Avoided Students
     // Check if any student currently in the room is avoided by the new student
     // or if any student in the room avoids the new student
 
@@ -225,17 +317,17 @@ function canAssignToRoom(studentName, room) {
     for (const existingStudent of room.students) {
         // Case A: New student avoids existing student
         if (studentAvoids.includes(existingStudent.name)) {
-            return false;
+            return { success: false, reason: `기피학생(${existingStudent.name})과의 배정은 제한됩니다` };
         }
 
         // Case B: Existing student avoids new student
         const existingStudentAvoids = AppState.avoidedPairs[existingStudent.name] || [];
         if (existingStudentAvoids.includes(studentName)) {
-            return false;
+            return { success: false, reason: `상대 학생(${existingStudent.name})의 기피 대상입니다` };
         }
     }
 
-    return true;
+    return { success: true };
 }
 
 function canAssignTogether(studentName1, studentName2) {
