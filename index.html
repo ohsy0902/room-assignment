@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기숙사 방 배치 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="app-title">🏢 기숙사 방 배치 시스템</h1>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">총 학생</span>
+                        <span class="stat-value" id="totalStudents">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">배치 완료</span>
+                        <span class="stat-value" id="assignedStudents">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">미배치</span>
+                        <span class="stat-value" id="unassignedStudents">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-section">
+                <h3>📁 파일 업로드</h3>
+                <div class="file-upload-group">
+                    <div class="file-upload-item">
+                        <label for="studentListFile" class="file-label">명렬표 (CSV)</label>
+                        <input type="file" id="studentListFile" accept=".csv,.xlsx" class="file-input">
+                        <span class="file-name" id="studentListFileName">파일을 선택하세요</span>
+                    </div>
+                    <div class="file-upload-item">
+                        <label for="preferredFile" class="file-label">선호학생 (CSV)</label>
+                        <input type="file" id="preferredFile" accept=".csv,.xlsx" class="file-input">
+                        <span class="file-name" id="preferredFileName">선택사항</span>
+                    </div>
+                    <div class="file-upload-item">
+                        <label for="avoidedFile" class="file-label">기피학생 (CSV)</label>
+                        <input type="file" id="avoidedFile" accept=".csv,.xlsx" class="file-input">
+                        <span class="file-name" id="avoidedFileName">선택사항</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>⚙️ 자동 배치</h3>
+                <div class="auto-assign-controls">
+                    <div class="assign-scope">
+                        <label>배치 범위:</label>
+                        <select id="assignScope" class="select-input">
+                            <option value="all">전체 기숙사</option>
+                            <option value="dormitory">기숙사별</option>
+                            <option value="floor">층별</option>
+                        </select>
+                    </div>
+                    <div class="assign-target" id="assignTargetContainer" style="display: none;">
+                        <select id="assignTarget" class="select-input">
+                            <!-- Dynamically populated -->
+                        </select>
+                    </div>
+                    <button id="autoAssignBtn" class="btn btn-primary">🎲 자동 배치 실행</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>🔧 관리</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <button id="resetBtn" class="btn btn-secondary">🔄 초기화</button>
+                    <button id="exportBtn" class="btn btn-success">📊 Excel로 내보내기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Dormitory Tabs -->
+            <div class="dormitory-tabs">
+                <button class="tab-btn active" data-dormitory="albatross">알바트로스</button>
+                <button class="tab-btn" data-dormitory="veritas">베리타스</button>
+                <button class="tab-btn" data-dormitory="singwan">명덕재</button>
+            </div>
+
+            <!-- Floor Selection -->
+            <div class="floor-selection" id="floorSelection">
+                <!-- Dynamically populated based on selected dormitory -->
+            </div>
+
+            <!-- Info Text -->
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: var(--spacing-lg);">
+                💡 <strong>팁:</strong> 호실을 클릭하면 성별 지정이 순환됩니다 (제한없음 → 남자 → 여자)
+            </p>
+
+            <!-- Room Grid -->
+            <div class="room-grid-container">
+                <div class="room-grid" id="roomGrid">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Unassigned Students Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3>미배치 학생</h3>
+                <span class="unassigned-count" id="sidebarCount">0명</span>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="sidebar-filters">
+                <label
+                    style="font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); margin-bottom: var(--spacing-sm); display: block;">📌
+                    필터링</label>
+                <div style="display: flex; gap: var(--spacing-sm); margin-bottom: var(--spacing-md);">
+                    <select id="filterGrade" class="select-input-small">
+                        <option value="all">전체 학년</option>
+                        <option value="1">1학년</option>
+                        <option value="2">2학년</option>
+                        <option value="3">3학년</option>
+                    </select>
+                    <select id="filterGender" class="select-input-small">
+                        <option value="all">전체 성별</option>
+                        <option value="남">남</option>
+                        <option value="여">여</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sidebar-content" id="unassignedList">
+                <p class="empty-state">명렬표를 업로드해주세요</p>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>처리 중...</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Floating Action Bar for Room Selection -->
+    <div class="floating-action-bar" id="floatingActionBar">
+        <span class="selection-count">0개 호실 선택됨</span>
+        <div class="action-buttons">
+            <button class="action-btn male" data-gender="남">남학생 전용</button>
+            <button class="action-btn female" data-gender="여">여학생 전용</button>
+            <button class="action-btn mixed" data-gender="mixed">제한 없음</button>
+        </div>
+        <button class="close-action-bar" id="clearSelectionBtn">✕</button>
+    </div>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="fileHandler.js"></script>
+    <script src="exportData.js"></script>
+    <script src="selectionHandler.js"></script> <!-- New script for selection -->
+    <script src="app.js"></script>
+    <script src="assignmentEngine.js"></script>
+    <script src="uiRenderer.js"></script>
+    <script src="dragDrop.js"></script>
+</body>
+
+</html>
