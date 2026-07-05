@@ -111,24 +111,11 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         renderRoomGrid(dormitoryKey, floorNum);
     });
 
-    // Layout button (👥) — opens layout modal
-    const layoutBtn = document.createElement('button');
-    layoutBtn.className = 'room-layout-btn';
-    layoutBtn.innerHTML = '👥';
-    layoutBtn.title = '호실 학년 구성 레이아웃 설정';
-    layoutBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (typeof openLayoutModal === 'function') {
-            openLayoutModal('room', { dormitory: dormitoryKey, floor: floorNum, roomNum: room.number });
-        }
-    });
-
     const capacity = document.createElement('div');
     capacity.className = 'room-capacity';
     capacity.textContent = `${room.students.length}/${room.capacity}`;
 
     capacityContainer.appendChild(toggleUnusedBtn);
-    capacityContainer.appendChild(layoutBtn);
     capacityContainer.appendChild(capacity);
 
     header.appendChild(roomNumber);
@@ -136,7 +123,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
 
     card.appendChild(header);
 
-    // Layout representation info (e.g. 1학년 2명, 2학년 2명) - NO icon button here anymore
+    // Layout representation info (e.g. 1학년×2, 2학년×2) — with icon
     if (room.layout && room.layout.length > 0) {
         const layoutBadge = document.createElement('div');
         layoutBadge.className = 'room-layout-badge';
@@ -144,7 +131,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         const counts = {};
         room.layout.forEach(g => counts[g] = (counts[g] || 0) + 1);
         const text = Object.entries(counts).map(([g, c]) => `${g}학년×${c}`).join(', ');
-        layoutBadge.textContent = text;
+        layoutBadge.innerHTML = `<span style="font-size:0.8rem;">👥</span> ${text}`;
         card.appendChild(layoutBadge);
     }
 
@@ -158,21 +145,21 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         return (a.name || '').localeCompare(b.name || '', 'ko');
     });
 
-    // Detect if any 2+ students in this room are from the same preferred group
-    const preferredGroup = (typeof getPreferredGroupForRoom === 'function')
-        ? getPreferredGroupForRoom(room.students)
-        : null;
-    const preferredNames = preferredGroup ? new Set(preferredGroup.students) : new Set();
+    // Detect ALL preferred groups that have 2+ members in this room
+    // Returns Map: studentName -> { colorIndex, groupId }
+    const preferredColorMap = (typeof getPreferredColorsForRoom === 'function')
+        ? getPreferredColorsForRoom(room.students)
+        : new Map();
 
     for (const student of sortedStudents) {
-        const isPreferred = preferredNames.has(student.name) && preferredNames.size >= 2;
-        const studentCard = createStudentCard(student, isPreferred);
+        const prefInfo = preferredColorMap.get(student.name);
+        const studentCard = createStudentCard(student, prefInfo || null);
         studentsContainer.appendChild(studentCard);
     }
 
     card.appendChild(studentsContainer);
 
-    // Click anywhere on room card (except student-card or layout button) opens layout modal
+    // Click anywhere on room card (except student-card or status toggle) opens layout modal
     card.addEventListener('click', (e) => {
         if (e.target.closest('.student-card')) return;
         if (e.target.closest('.room-layout-btn')) return;
@@ -187,14 +174,16 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     return card;
 }
 
-function createStudentCard(student, isPreferred = false) {
+// prefInfo: null | { colorIndex: number } — colorIndex 0~N for distinct pair colors
+function createStudentCard(student, prefInfo = null) {
     const card = document.createElement('div');
     card.className = 'student-card';
     if (student.gender === '여') {
         card.classList.add('female');
     }
-    if (isPreferred) {
+    if (prefInfo !== null) {
         card.classList.add('preferred-match');
+        card.classList.add(`preferred-color-${prefInfo.colorIndex % 5}`);
     }
     card.draggable = true;
     card.dataset.studentName = student.name;
@@ -209,9 +198,9 @@ function createStudentCard(student, isPreferred = false) {
     name.textContent = student.name;
     nameRow.appendChild(name);
 
-    if (isPreferred) {
+    if (prefInfo !== null) {
         const badge = document.createElement('span');
-        badge.className = 'preferred-badge';
+        badge.className = `preferred-badge preferred-badge-${prefInfo.colorIndex % 5}`;
         badge.title = '선호학생 함께 배치됨';
         badge.textContent = '♥';
         nameRow.appendChild(badge);

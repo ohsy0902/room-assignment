@@ -371,17 +371,40 @@ function canAssignTogether(studentName1, studentName2) {
 }
 
 /**
- * Check if two students in a room are from the same preferred group.
+ * Returns a Map: studentName -> { colorIndex }
+ * covering all preferred groups that have 2+ members in this room.
+ * Each distinct group gets a unique colorIndex (0, 1, 2, ...).
  */
-function getPreferredGroupForRoom(students) {
-    if (!AppState.preferredGroups || students.length < 2) return null;
+function getPreferredColorsForRoom(students) {
+    const colorMap = new Map();
+    if (!AppState.preferredGroups || students.length < 2) return colorMap;
+
+    const studentNames = new Set(students.map(s => s.name));
+    let colorIndex = 0;
 
     for (const group of AppState.preferredGroups) {
         const groupNames = new Set(group.students);
-        const matchedStudents = students.filter(s => groupNames.has(s.name));
-        if (matchedStudents.length >= 2) {
-            return group;
+        const matched = students.filter(s => groupNames.has(s.name));
+        if (matched.length >= 2) {
+            for (const s of matched) {
+                // If student is already in a color group, keep the first assignment
+                if (!colorMap.has(s.name)) {
+                    colorMap.set(s.name, { colorIndex });
+                }
+            }
+            colorIndex++;
         }
+    }
+    return colorMap;
+}
+
+// Keep old function for backwards compatibility
+function getPreferredGroupForRoom(students) {
+    if (!AppState.preferredGroups || students.length < 2) return null;
+    for (const group of AppState.preferredGroups) {
+        const groupNames = new Set(group.students);
+        const matched = students.filter(s => groupNames.has(s.name));
+        if (matched.length >= 2) return group;
     }
     return null;
 }
