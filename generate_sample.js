@@ -89,25 +89,23 @@ function generatePreferredGroups(students) {
 }
 
 function generateAvoidedPairs(students) {
-    // 각 학생당 최대 2명의 기피학생 (약 20% 학생만 지정)
+    // 모든 학생이 정확히 2명씩 기피학생 지정 (동성 내에서)
     const avoided = [];
     const shuffle = (arr) => {
-        const a = [...arr]; for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
     };
 
-    const shuffledStudents = shuffle(students);
-    const targetCount = Math.floor(students.length * 0.2); // 20% 학생이 기피학생 지정
+    for (const student of students) {
+        // 동성 학생 중 본인 제외하여 랜덤 2명 선택
+        const candidates = shuffle(students.filter(s => s.name !== student.name && s.gender === student.gender));
+        const avoided1 = candidates[0] || null;
+        const avoided2 = candidates[1] || null;
 
-    for (let i = 0; i < targetCount; i++) {
-        const student = shuffledStudents[i];
-        // Pick 1-2 random students of same gender to avoid (to be realistic)
-        const candidates = students.filter(s => s.name !== student.name && s.gender === student.gender);
-        const shuffledCandidates = shuffle(candidates);
-        const count = Math.random() > 0.5 ? 2 : 1;
-        const avoided1 = shuffledCandidates[0];
-        const avoided2 = count === 2 ? shuffledCandidates[1] : null;
-
-        let row = `${student.name}(${student.grade}학년),${avoided1 ? avoided1.name+'('+avoided1.grade+'학년)' : ''},${avoided2 ? avoided2.name+'('+avoided2.grade+'학년)' : ''}`;
         avoided.push({
             student: student.name,
             grade: student.grade,
