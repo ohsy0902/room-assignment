@@ -342,8 +342,8 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 180px);
-    min-height: 400px;
+    height: 100vh;
+    min-height: 600px;
 }
 
 /* Dormitory Tabs */
@@ -557,8 +557,8 @@ body {
     padding: var(--spacing-xl);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border);
-    height: calc(100vh - 180px);
-    min-height: 400px;
+    height: 100vh;
+    min-height: 600px;
     display: flex;
     flex-direction: column;
 }
@@ -651,10 +651,64 @@ body {
 }
 
 .empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
     text-align: center;
     color: var(--text-muted);
     font-size: 0.875rem;
     padding: var(--spacing-2xl);
+    line-height: 1.6;
+}
+
+/* ===== Room Status Toggle ===== */
+.room-status-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-2xl);
+    padding: 3px 8px 3px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.room-status-toggle .indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    transition: var(--transition);
+}
+
+.room-status-toggle.active {
+    background: rgba(0, 200, 150, 0.05);
+    color: var(--secondary-dark);
+    border-color: rgba(0, 200, 150, 0.3);
+}
+
+.room-status-toggle.active .indicator {
+    background: var(--secondary);
+    box-shadow: 0 0 6px var(--secondary);
+}
+
+.room-status-toggle.inactive {
+    background: rgba(156, 163, 175, 0.05);
+    color: var(--text-muted);
+    border-color: rgba(156, 163, 175, 0.3);
+}
+
+.room-status-toggle.inactive .indicator {
+    background: var(--text-muted);
+}
+
+.room-status-toggle:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
 /* ===== Loading Overlay ===== */

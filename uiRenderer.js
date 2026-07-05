@@ -95,8 +95,10 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     capacityContainer.style.gap = 'var(--spacing-xs)';
 
     const toggleUnusedBtn = document.createElement('button');
-    toggleUnusedBtn.className = 'room-layout-btn';
-    toggleUnusedBtn.innerHTML = room.unused ? '✅' : '🚫';
+    toggleUnusedBtn.className = `room-status-toggle ${room.unused ? 'inactive' : 'active'}`;
+    toggleUnusedBtn.innerHTML = room.unused ? 
+        '<span class="indicator"></span> 미사용' : 
+        '<span class="indicator"></span> 사용 중';
     toggleUnusedBtn.title = room.unused ? '사용 호실로 전환' : '미사용 호실로 지정';
     toggleUnusedBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -221,9 +223,9 @@ function renderUnassignedList() {
     if (unassigned.length === 0) {
         const totalUnassigned = getUnassignedStudents().length;
         if (totalUnassigned > 0) {
-            container.innerHTML = '<p class="empty-state">필터 조건에 맞는 학생이 없습니다</p>';
+            container.innerHTML = '<div class="empty-state">필터 조건에 맞는 학생이<br>없습니다</div>';
         } else {
-            container.innerHTML = '<p class="empty-state">모든 학생이 배치되었습니다</p>';
+            container.innerHTML = '<div class="empty-state">모든 학생이<br>배치되었습니다</div>';
         }
         return;
     }
