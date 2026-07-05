@@ -145,15 +145,24 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         return (a.name || '').localeCompare(b.name || '', 'ko');
     });
 
-    // Detect ALL preferred groups that have 2+ members in this room
-    // Returns Map: studentName -> { colorIndex, groupId }
+    // Detect ALL preferred groups with 2+ members in this room
     const preferredColorMap = (typeof getPreferredColorsForRoom === 'function')
         ? getPreferredColorsForRoom(room.students)
         : new Map();
 
+    // Build set of students in conflict (force-assigned despite avoidance)
+    const conflictNames = new Set();
+    if (room.conflictPairs && room.conflictPairs.length > 0) {
+        for (const [n1, n2] of room.conflictPairs) {
+            conflictNames.add(n1);
+            conflictNames.add(n2);
+        }
+    }
+
     for (const student of sortedStudents) {
         const prefInfo = preferredColorMap.get(student.name);
-        const studentCard = createStudentCard(student, prefInfo || null);
+        const isConflict = conflictNames.has(student.name);
+        const studentCard = createStudentCard(student, prefInfo || null, isConflict);
         studentsContainer.appendChild(studentCard);
     }
 
@@ -174,16 +183,20 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     return card;
 }
 
-// prefInfo: null | { colorIndex: number } — colorIndex 0~N for distinct pair colors
-function createStudentCard(student, prefInfo = null) {
+// prefInfo: null | { colorIndex: number (0 or 1) }
+// isConflict: boolean — true if force-assigned despite avoidance conflict
+function createStudentCard(student, prefInfo = null, isConflict = false) {
     const card = document.createElement('div');
     card.className = 'student-card';
     if (student.gender === '여') {
         card.classList.add('female');
     }
-    if (prefInfo !== null) {
+    if (isConflict) {
+        card.classList.add('conflict-forced');
+    } else if (prefInfo !== null) {
+        // Only apply preferred styling if not a conflict
         card.classList.add('preferred-match');
-        card.classList.add(`preferred-color-${prefInfo.colorIndex % 5}`);
+        card.classList.add(`preferred-color-${prefInfo.colorIndex % 2}`);
     }
     card.draggable = true;
     card.dataset.studentName = student.name;
@@ -198,9 +211,15 @@ function createStudentCard(student, prefInfo = null) {
     name.textContent = student.name;
     nameRow.appendChild(name);
 
-    if (prefInfo !== null) {
+    if (isConflict) {
         const badge = document.createElement('span');
-        badge.className = `preferred-badge preferred-badge-${prefInfo.colorIndex % 5}`;
+        badge.className = 'conflict-badge';
+        badge.title = '기피학생 조건 무시 강제 배정';
+        badge.textContent = '!';
+        nameRow.appendChild(badge);
+    } else if (prefInfo !== null) {
+        const badge = document.createElement('span');
+        badge.className = `preferred-badge preferred-badge-${prefInfo.colorIndex % 2}`;
         badge.title = '선호학생 함께 배치됨';
         badge.textContent = '♥';
         nameRow.appendChild(badge);

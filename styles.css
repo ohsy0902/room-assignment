@@ -858,15 +858,14 @@ body {
     border-left-color: #db2777;
 }
 
-/* Preferred-match student highlight — 5 distinct pair colors */
-/* Color palette: amber(0), teal(1), violet(2), rose(3), sky(4) */
+/* Preferred-match student highlight — 2 distinct pair colors */
 .preferred-badge {
     font-size: 0.65rem;
     flex-shrink: 0;
     animation: heartbeat 1.8s ease-in-out infinite;
 }
 
-/* --- Color 0: Amber (default) --- */
+/* --- Color 0: Amber --- */
 .student-card.preferred-color-0 { border-left-color: #f59e0b; background: linear-gradient(to right, rgba(245,158,11,0.07), transparent); }
 .student-card.preferred-color-0:hover { border-left-color: #d97706; }
 .student-card.female.preferred-color-0 { background: linear-gradient(to right, rgba(245,158,11,0.09), #fff0f7); }
@@ -878,26 +877,36 @@ body {
 .student-card.female.preferred-color-1 { background: linear-gradient(to right, rgba(20,184,166,0.09), #fff0f7); }
 .preferred-badge-1 { color: #14b8a6; }
 
-/* --- Color 2: Violet --- */
-.student-card.preferred-color-2 { border-left-color: #8b5cf6; background: linear-gradient(to right, rgba(139,92,246,0.07), transparent); }
-.student-card.preferred-color-2:hover { border-left-color: #7c3aed; }
-.student-card.female.preferred-color-2 { background: linear-gradient(to right, rgba(139,92,246,0.09), #fff0f7); }
-.preferred-badge-2 { color: #8b5cf6; }
+/* ===== Conflict-forced student (force-assigned despite avoidance) ===== */
+.student-card.conflict-forced {
+    border-left-color: #ef4444;
+    background: linear-gradient(to right, rgba(239,68,68,0.08), transparent);
+}
 
-/* --- Color 3: Rose --- */
-.student-card.preferred-color-3 { border-left-color: #f43f5e; background: linear-gradient(to right, rgba(244,63,94,0.07), transparent); }
-.student-card.preferred-color-3:hover { border-left-color: #e11d48; }
-.student-card.female.preferred-color-3 { background: linear-gradient(to right, rgba(244,63,94,0.09), #fff0f7); }
-.preferred-badge-3 { color: #f43f5e; }
+.student-card.conflict-forced:hover {
+    border-left-color: #dc2626;
+    background: linear-gradient(to right, rgba(239,68,68,0.13), transparent);
+}
 
-/* --- Color 4: Sky --- */
-.student-card.preferred-color-4 { border-left-color: #0ea5e9; background: linear-gradient(to right, rgba(14,165,233,0.07), transparent); }
-.student-card.preferred-color-4:hover { border-left-color: #0284c7; }
-.student-card.female.preferred-color-4 { background: linear-gradient(to right, rgba(14,165,233,0.09), #fff0f7); }
-.preferred-badge-4 { color: #0ea5e9; }
+.student-card.female.conflict-forced {
+    background: linear-gradient(to right, rgba(239,68,68,0.1), #fff0f7);
+}
 
-
-/* ===== Floor Configuration Controls ===== */
+.conflict-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #ef4444;
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    line-height: 1;
+}/* ===== Floor Configuration Controls ===== */
 .floor-config-row {
     display: flex;
     justify-content: space-between;

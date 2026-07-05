@@ -164,12 +164,10 @@ async function assignRemainingStudents(scope, target) {
                 const availableRooms = getAvailableRooms(scope, target);
                 let assigned = false;
 
-                // Stage 1: 기피학생 무시. 단, 성별 + 방 내 실제성별 + 레이아웃은 존중
+                // Stage 1: 기피학생 무시. 단, 성별 + 레이아웃은 존중
                 for (const roomInfo of availableRooms) {
                     const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
                     if (room.students.length >= room.capacity) continue;
-
-                    // 성별 체크 (floor gender 설정 + 방 내 실제 성별 모두 확인)
                     if (!checkGenderCompatible(student, room)) continue;
 
                     if (room.layout && room.layout.length > 0) {
@@ -181,23 +179,46 @@ async function assignRemainingStudents(scope, target) {
 
                     assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
                     assigned = true;
+                    // Track conflict pairs in this room
+                    markConflictPairs(student, room);
                     break;
                 }
 
-                // Stage 2: Stage 1 실패 시. 기피 무시, 레이아웃 무시. 단, 성별만 존중
+                // Stage 2: 기피 무시, 레이아웃 무시. 성별만 존중
                 if (!assigned) {
                     for (const roomInfo of availableRooms) {
                         const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
                         if (room.students.length >= room.capacity) continue;
-
-                        // 성별은 무조건 체크 (남녀 혼숙 불가)
                         if (!checkGenderCompatible(student, room)) continue;
 
                         assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
                         assigned = true;
+                        // Track conflict pairs in this room
+                        markConflictPairs(student, room);
                         break;
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * After force-assigning a student, record avoidance conflict pairs in the room.
+ */
+function markConflictPairs(student, room) {
+    if (!room.conflictPairs) room.conflictPairs = [];
+    const studentAvoids = AppState.avoidedPairs[student.name] || [];
+    for (const roommate of room.students) {
+        if (roommate.name === student.name) continue;
+        const roommateAvoids = AppState.avoidedPairs[roommate.name] || [];
+        if (studentAvoids.includes(roommate.name) || roommateAvoids.includes(student.name)) {
+            // Avoid duplicate pairs
+            const alreadyRecorded = room.conflictPairs.some(
+                ([a, b]) => (a === student.name && b === roommate.name) || (a === roommate.name && b === student.name)
+            );
+            if (!alreadyRecorded) {
+                room.conflictPairs.push([student.name, roommate.name]);
             }
         }
     }

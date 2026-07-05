@@ -70,7 +70,8 @@ function initializeDormitories() {
                     students: [],
                     gender: 'mixed',
                     layout: null,
-                    unused: false
+                    unused: false,
+                    conflictPairs: []
                 };
             }
         }
