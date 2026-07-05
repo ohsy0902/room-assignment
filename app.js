@@ -69,7 +69,8 @@ function initializeDormitories() {
                     capacity: 4,
                     students: [],
                     gender: 'mixed',
-                    layout: null
+                    layout: null,
+                    unused: false
                 };
             }
         }
@@ -161,10 +162,10 @@ function handleTabClick(e) {
         const dormitory = e.target.dataset.dormitory;
         AppState.currentDormitory = dormitory;
 
-        renderFloorSelection(dormitory);
-
         const firstFloor = Object.keys(DORM_CONFIG[dormitory].floors)[0];
         AppState.currentFloor = firstFloor;
+
+        renderFloorSelection(dormitory);
         renderRoomGrid(dormitory, firstFloor);
         updateFloorGenderButtons();
     }

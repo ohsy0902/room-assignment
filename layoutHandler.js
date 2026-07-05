@@ -139,6 +139,15 @@ function initLayoutModalListeners() {
     document.getElementById('closeLayoutModalBtn').addEventListener('click', closeLayoutModal);
     document.getElementById('cancelLayoutModalBtn').addEventListener('click', closeLayoutModal);
 
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const layoutModal = document.getElementById('layoutModal');
+            if (layoutModal && layoutModal.style.display !== 'none') {
+                closeLayoutModal();
+            }
+        }
+    });
+
     // Save
     document.getElementById('saveLayoutModalBtn').addEventListener('click', saveLayout);
 

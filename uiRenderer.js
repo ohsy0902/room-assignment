@@ -60,6 +60,10 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         else card.classList.add('gender-mixed');
     }
 
+    if (room.unused) {
+        card.classList.add('unused');
+    }
+
     if (room.students.length >= room.capacity) {
         card.classList.add('full');
     }
@@ -90,9 +94,23 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     capacityContainer.style.alignItems = 'center';
     capacityContainer.style.gap = 'var(--spacing-xs)';
 
+    const toggleUnusedBtn = document.createElement('button');
+    toggleUnusedBtn.className = 'room-layout-btn';
+    toggleUnusedBtn.innerHTML = room.unused ? '✅' : '🚫';
+    toggleUnusedBtn.title = room.unused ? '사용 호실로 전환' : '미사용 호실로 지정';
+    toggleUnusedBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (room.students.length > 0 && !room.unused) {
+            showToast('학생이 배치된 호실은 미사용으로 지정할 수 없습니다.', 'warning');
+            return;
+        }
+        room.unused = !room.unused;
+        renderRoomGrid(dormitoryKey, floorNum);
+    });
+
     const layoutBtn = document.createElement('button');
     layoutBtn.className = 'room-layout-btn';
-    layoutBtn.innerHTML = '📐';
+    layoutBtn.innerHTML = '👥';
     layoutBtn.title = '호실 학년 구성 레이아웃 설정';
     layoutBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -105,6 +123,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     capacity.className = 'room-capacity';
     capacity.textContent = `${room.students.length}/${room.capacity}`;
 
+    capacityContainer.appendChild(toggleUnusedBtn);
     capacityContainer.appendChild(layoutBtn);
     capacityContainer.appendChild(capacity);
 
@@ -121,7 +140,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         const counts = {};
         room.layout.forEach(g => counts[g] = (counts[g] || 0) + 1);
         const text = Object.entries(counts).map(([g, c]) => `${g}학년×${c}`).join(', ');
-        layoutBadge.innerHTML = `<span style="font-size: 0.8rem;">📐</span> ${text}`;
+        layoutBadge.innerHTML = `<span style="font-size: 0.8rem;">👥</span> ${text}`;
         card.appendChild(layoutBadge);
     }
 
@@ -140,6 +159,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     card.addEventListener('click', (e) => {
         if (e.target.closest('.student-card')) return;
         if (e.target.closest('.room-layout-btn')) return;
+        if (room.unused) return;
 
         if (typeof openLayoutModal === 'function') {
             openLayoutModal('room', { dormitory: dormitoryKey, floor: floorNum, roomNum: room.number });

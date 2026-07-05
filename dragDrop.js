@@ -119,6 +119,12 @@ function handleDrop(e) {
 function handleRoomDrop(targetDormitory, targetFloor, targetRoom) {
     const room = AppState.dormitories[targetDormitory].floors[targetFloor].rooms[targetRoom];
 
+    if (room.unused) {
+        showToast('미사용으로 지정된 호실입니다', 'warning');
+        renderAll();
+        return;
+    }
+
     // Check if room is full
     if (room.students.length >= room.capacity) {
         showToast('호실 정원이 가득 찼습니다', 'warning');

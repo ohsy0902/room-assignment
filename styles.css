@@ -343,6 +343,7 @@ body {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 180px);
+    min-height: 400px;
 }
 
 /* Dormitory Tabs */
@@ -381,7 +382,6 @@ body {
 .floor-selection {
     display: flex;
     gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-xl);
     flex-wrap: wrap;
 }
 
@@ -450,6 +450,18 @@ body {
 .room-card.full {
     border-color: var(--accent-orange);
     background: rgba(255, 107, 53, 0.03);
+}
+
+.room-card.unused {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+    opacity: 0.7;
+}
+
+.room-card.unused .room-students,
+.room-card.unused .room-layout-badge {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 /* Room Gender Indicators */
@@ -546,6 +558,7 @@ body {
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border);
     height: calc(100vh - 180px);
+    min-height: 400px;
     display: flex;
     flex-direction: column;
 }

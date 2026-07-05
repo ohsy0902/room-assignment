@@ -219,7 +219,7 @@ function getAvailableRooms(scope, target) {
         for (const [dormKey, dorm] of Object.entries(AppState.dormitories)) {
             for (const [floorNum, floor] of Object.entries(dorm.floors)) {
                 for (const [roomNum, room] of Object.entries(floor.rooms)) {
-                    if (room.students.length < room.capacity) {
+                    if (room.students.length < room.capacity && !room.unused) {
                         rooms.push({
                             dormitory: dormKey,
                             floor: floorNum,
@@ -234,7 +234,7 @@ function getAvailableRooms(scope, target) {
         const dorm = AppState.dormitories[target];
         for (const [floorNum, floor] of Object.entries(dorm.floors)) {
             for (const [roomNum, room] of Object.entries(floor.rooms)) {
-                if (room.students.length < room.capacity) {
+                if (room.students.length < room.capacity && !room.unused) {
                     rooms.push({
                         dormitory: target,
                         floor: floorNum,
@@ -249,7 +249,7 @@ function getAvailableRooms(scope, target) {
         const floor = AppState.dormitories[dormKey].floors[floorNum];
 
         for (const [roomNum, room] of Object.entries(floor.rooms)) {
-            if (room.students.length < room.capacity) {
+            if (room.students.length < room.capacity && !room.unused) {
                 rooms.push({
                     dormitory: dormKey,
                     floor: floorNum,
