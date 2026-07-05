@@ -37,7 +37,7 @@ function assignPreferredGroups(scope, target) {
 
                 // Check existing students in the room (gender & avoided)
                 for (const student of students) {
-                    if (!canAssignToRoom(student.name, room).success) {
+                    if (!canAssignToRoom(student.name, room, students).success) {
                         canAssign = false;
                         break;
                     }
@@ -91,11 +91,6 @@ function assignPreferredGroups(scope, target) {
                     break;
                 }
             }
-        }
-
-        if (!assigned && students.length > 0) {
-            // Only warn if we actually tried to assign them (i.e., they passed filters)
-            // console.warn(`선호학생 그룹을 배정할 수 없습니다: ${students.map(s => s.name).join(', ')}`);
         }
     }
 }
@@ -169,14 +164,13 @@ async function assignRemainingStudents(scope, target) {
                 const availableRooms = getAvailableRooms(scope, target);
                 let assigned = false;
 
-                // Stage 1: 무시할 조건 - 기피학생. 성별, 레이아웃 존중 시도.
+                // Stage 1: 기피학생 무시. 단, 성별 + 방 내 실제성별 + 레이아웃은 존중
                 for (const roomInfo of availableRooms) {
                     const room = AppState.dormitories[roomInfo.dormitory].floors[roomInfo.floor].rooms[roomInfo.room];
                     if (room.students.length >= room.capacity) continue;
 
-                    if (room.gender && room.gender !== 'mixed') {
-                        if (student.gender && student.gender !== room.gender) continue;
-                    }
+                    // 성별 체크 (floor gender 설정 + 방 내 실제 성별 모두 확인)
+                    if (!checkGenderCompatible(student, room)) continue;
 
                     if (room.layout && room.layout.length > 0) {
                         const grade = student.grade;
@@ -197,9 +191,7 @@ async function assignRemainingStudents(scope, target) {
                         if (room.students.length >= room.capacity) continue;
 
                         // 성별은 무조건 체크 (남녀 혼숙 불가)
-                        if (room.gender && room.gender !== 'mixed') {
-                            if (student.gender && student.gender !== room.gender) continue;
-                        }
+                        if (!checkGenderCompatible(student, room)) continue;
 
                         assignStudentToRoom(student, roomInfo.dormitory, roomInfo.floor, roomInfo.room);
                         assigned = true;
@@ -285,18 +277,58 @@ function matchesFilters(student) {
     return true;
 }
 
-function canAssignToRoom(studentName, room) {
+/**
+ * Check if a student's gender is compatible with a room.
+ * This checks BOTH the floor/room gender setting AND the genders of existing students in the room.
+ * A room is gender-fixed once the first student is assigned (if floor is mixed).
+ */
+function checkGenderCompatible(student, room) {
+    // 1. Check floor/room gender constraint
+    if (room.gender && room.gender !== 'mixed') {
+        if (student.gender && student.gender !== room.gender) return false;
+    }
+
+    // 2. Critical: Check actual students already in the room (prevent mixed-gender rooms)
+    if (student.gender && room.students.length > 0) {
+        const existingGender = room.students[0].gender;
+        if (existingGender && existingGender !== student.gender) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function canAssignToRoom(studentName, room, pendingStudents = []) {
     const student = findStudent(studentName);
     if (!student) return { success: false, reason: '학생을 찾을 수 없습니다' };
 
-    // 1. Check Room Gender Constraint
+    // 1. Check Room Gender Constraint (floor/room setting)
     if (room.gender && room.gender !== 'mixed') {
         if (student.gender && student.gender !== room.gender) {
             return { success: false, reason: `이 호실은 ${room.gender}학생 전용입니다 (학생 성별: ${student.gender})` };
         }
     }
 
-    // 2. Check Grade Layout Constraint
+    // 2. Critical: Check actual students already in the room - prevent mixed gender
+    if (student.gender && room.students.length > 0) {
+        const existingGender = room.students[0].gender;
+        if (existingGender && existingGender !== student.gender) {
+            return { success: false, reason: `이 호실에는 이미 ${existingGender}학생이 배치되어 있습니다` };
+        }
+    }
+
+    // 3. Check pending students (students being assigned together in the same call)
+    if (pendingStudents.length > 0 && student.gender) {
+        for (const pending of pendingStudents) {
+            if (pending.name === studentName) continue;
+            if (pending.gender && pending.gender !== student.gender) {
+                return { success: false, reason: '선호학생 그룹 내 성별이 혼합되어 있습니다' };
+            }
+        }
+    }
+
+    // 4. Check Grade Layout Constraint
     if (room.layout && room.layout.length > 0) {
         const grade = student.grade;
         const allowedCount = room.layout.filter(g => g === grade).length;
@@ -307,11 +339,7 @@ function canAssignToRoom(studentName, room) {
         }
     }
 
-    // 3. Check Avoided Students
-    // Check if any student currently in the room is avoided by the new student
-    // or if any student in the room avoids the new student
-
-    // Get avoided list for the new student
+    // 5. Check Avoided Students
     const studentAvoids = AppState.avoidedPairs[studentName] || [];
 
     for (const existingStudent of room.students) {
@@ -340,4 +368,20 @@ function canAssignTogether(studentName1, studentName2) {
     if (avoids2.includes(studentName1)) return false;
 
     return true;
+}
+
+/**
+ * Check if two students in a room are from the same preferred group.
+ */
+function getPreferredGroupForRoom(students) {
+    if (!AppState.preferredGroups || students.length < 2) return null;
+
+    for (const group of AppState.preferredGroups) {
+        const groupNames = new Set(group.students);
+        const matchedStudents = students.filter(s => groupNames.has(s.name));
+        if (matchedStudents.length >= 2) {
+            return group;
+        }
+    }
+    return null;
 }

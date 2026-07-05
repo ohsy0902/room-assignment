@@ -104,20 +104,40 @@ function parsePreferredGroups(data) {
     for (const row of data) {
         const students = [];
 
-        // Expected columns: 자치위원학년, 학생1, 학생2, 학생3, 학생4
-        // Or: grade, student1, student2, student3, student4
-        const grade = row['자치위원학년'] || row['grade'] || row['Grade'];
+        // New format: 학생1, 학생1학년, 학생2, 학생2학년 (2-person pairs)
+        // Old format: 학생1, 학생2, 학생3, 학생4
+        const hasGradeColumns = Object.keys(row).some(k => k.includes('학년'));
 
-        for (let i = 1; i <= 4; i++) {
-            const studentName = row[`학생${i}`] || row[`student${i}`] || row[`Student${i}`];
-            if (studentName && studentName.trim()) {
-                students.push(studentName.trim());
+        if (hasGradeColumns) {
+            // New grade-aware format
+            for (let i = 1; i <= 4; i++) {
+                const studentName = row[`학생${i}`] || row[`student${i}`];
+                const studentGrade = row[`학생${i}학년`] || row[`grade${i}`];
+                if (studentName && studentName.trim()) {
+                    const grade = studentGrade ? parseInt(studentGrade) : null;
+                    // Find matching student by name AND grade
+                    const found = AppState.students.find(s =>
+                        s.name === studentName.trim() && (grade === null || s.grade === grade)
+                    );
+                    if (found) {
+                        students.push(found.name);
+                    } else {
+                        students.push(studentName.trim());
+                    }
+                }
+            }
+        } else {
+            // Legacy format (no grade columns)
+            for (let i = 1; i <= 4; i++) {
+                const studentName = row[`학생${i}`] || row[`student${i}`] || row[`Student${i}`];
+                if (studentName && studentName.trim()) {
+                    students.push(studentName.trim());
+                }
             }
         }
 
-        if (students.length > 0) {
+        if (students.length >= 2) {
             AppState.preferredGroups.push({
-                grade: grade ? parseInt(grade) : null,
                 students: students,
                 assignedRoom: null
             });
@@ -165,25 +185,56 @@ function parseAvoidedPairs(data) {
     AppState.avoidedPairs = {};
 
     for (const row of data) {
-        // Expected columns: 학생이름, 기피학생1, 기피학생2
-        const studentName = row['학생이름'] || row['name'] || row['Name'];
+        // New format: 학생이름, 학생학년, 기피학생1, 기피학생1학년, 기피학생2, 기피학생2학년
+        // Old format: 학생이름(or 학생 or name), 기피학생1, 기피학생2
+        const hasGradeColumns = Object.keys(row).some(k => k.includes('학년'));
 
-        if (studentName && studentName.trim()) {
-            const avoided = [];
+        const studentName = row['학생이름'] || row['학생'] || row['name'] || row['Name'];
+        if (!studentName || !studentName.trim()) continue;
 
-            const avoided1 = row['기피학생1'] || row['avoided1'] || row['Avoided1'];
-            const avoided2 = row['기피학생2'] || row['avoided2'] || row['Avoided2'];
+        const trimmedName = studentName.trim();
+
+        // Resolve key: if grade provided, use "name(grade학년)" only if duplicates exist
+        // But for simplicity, use name as key and match by name when assigning
+        const avoided = [];
+
+        if (hasGradeColumns) {
+            const avoided1 = row['기피학생1'] || row['avoided1'];
+            const avoided1grade = row['기피학생1학년'];
+            const avoided2 = row['기피학생2'] || row['avoided2'];
+            const avoided2grade = row['기피학생2학년'];
 
             if (avoided1 && avoided1.trim()) {
-                avoided.push(avoided1.trim());
+                // Find the correct student (grade-aware)
+                const g1 = avoided1grade ? parseInt(avoided1grade) : null;
+                const found1 = AppState.students.find(s =>
+                    s.name === avoided1.trim() && (g1 === null || s.grade === g1)
+                );
+                avoided.push(found1 ? found1.name : avoided1.trim());
             }
             if (avoided2 && avoided2.trim()) {
-                avoided.push(avoided2.trim());
+                const g2 = avoided2grade ? parseInt(avoided2grade) : null;
+                const found2 = AppState.students.find(s =>
+                    s.name === avoided2.trim() && (g2 === null || s.grade === g2)
+                );
+                avoided.push(found2 ? found2.name : avoided2.trim());
             }
+        } else {
+            const avoided1 = row['기피학생1'] || row['avoided1'] || row['Avoided1'];
+            const avoided2 = row['기피학생2'] || row['avoided2'] || row['Avoided2'];
+            if (avoided1 && avoided1.trim()) avoided.push(avoided1.trim());
+            if (avoided2 && avoided2.trim()) avoided.push(avoided2.trim());
+        }
 
-            if (avoided.length > 0) {
-                AppState.avoidedPairs[studentName.trim()] = avoided;
-            }
+        if (avoided.length > 0) {
+            // Support grade-aware key: if same name exists multiple times, use grade suffix
+            const studentGrade = row['학생학년'];
+            const g = studentGrade ? parseInt(studentGrade) : null;
+            const matchedStudent = AppState.students.find(s =>
+                s.name === trimmedName && (g === null || s.grade === g)
+            );
+            const key = matchedStudent ? matchedStudent.name : trimmedName;
+            AppState.avoidedPairs[key] = avoided;
         }
     }
 }

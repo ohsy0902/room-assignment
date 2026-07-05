@@ -87,17 +87,18 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         roomNumber.appendChild(badge);
     }
 
-    // Capacity & Layout Button Container
+    // Right side: status toggle + capacity
     const capacityContainer = document.createElement('div');
     capacityContainer.className = 'room-capacity-container';
     capacityContainer.style.display = 'flex';
     capacityContainer.style.alignItems = 'center';
     capacityContainer.style.gap = 'var(--spacing-xs)';
 
+    // Status toggle (unused / in use)
     const toggleUnusedBtn = document.createElement('button');
     toggleUnusedBtn.className = `room-status-toggle ${room.unused ? 'inactive' : 'active'}`;
-    toggleUnusedBtn.innerHTML = room.unused ? 
-        '<span class="indicator"></span> 미사용' : 
+    toggleUnusedBtn.innerHTML = room.unused ?
+        '<span class="indicator"></span> 미사용' :
         '<span class="indicator"></span> 사용 중';
     toggleUnusedBtn.title = room.unused ? '사용 호실로 전환' : '미사용 호실로 지정';
     toggleUnusedBtn.addEventListener('click', (e) => {
@@ -110,6 +111,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         renderRoomGrid(dormitoryKey, floorNum);
     });
 
+    // Layout button (👥) — opens layout modal
     const layoutBtn = document.createElement('button');
     layoutBtn.className = 'room-layout-btn';
     layoutBtn.innerHTML = '👥';
@@ -134,7 +136,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
 
     card.appendChild(header);
 
-    // Layout representation info (e.g. 1학년 2명, 2학년 2명)
+    // Layout representation info (e.g. 1학년 2명, 2학년 2명) - NO icon button here anymore
     if (room.layout && room.layout.length > 0) {
         const layoutBadge = document.createElement('div');
         layoutBadge.className = 'room-layout-badge';
@@ -142,16 +144,29 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         const counts = {};
         room.layout.forEach(g => counts[g] = (counts[g] || 0) + 1);
         const text = Object.entries(counts).map(([g, c]) => `${g}학년×${c}`).join(', ');
-        layoutBadge.innerHTML = `<span style="font-size: 0.8rem;">👥</span> ${text}`;
+        layoutBadge.textContent = text;
         card.appendChild(layoutBadge);
     }
 
-    // Students
+    // Students — sorted by grade then name
     const studentsContainer = document.createElement('div');
     studentsContainer.className = 'room-students';
 
-    for (const student of room.students) {
-        const studentCard = createStudentCard(student);
+    // Sort students: by grade asc, then name asc
+    const sortedStudents = [...room.students].sort((a, b) => {
+        if ((a.grade || 0) !== (b.grade || 0)) return (a.grade || 0) - (b.grade || 0);
+        return (a.name || '').localeCompare(b.name || '', 'ko');
+    });
+
+    // Detect if any 2+ students in this room are from the same preferred group
+    const preferredGroup = (typeof getPreferredGroupForRoom === 'function')
+        ? getPreferredGroupForRoom(room.students)
+        : null;
+    const preferredNames = preferredGroup ? new Set(preferredGroup.students) : new Set();
+
+    for (const student of sortedStudents) {
+        const isPreferred = preferredNames.has(student.name) && preferredNames.size >= 2;
+        const studentCard = createStudentCard(student, isPreferred);
         studentsContainer.appendChild(studentCard);
     }
 
@@ -161,6 +176,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     card.addEventListener('click', (e) => {
         if (e.target.closest('.student-card')) return;
         if (e.target.closest('.room-layout-btn')) return;
+        if (e.target.closest('.room-status-toggle')) return;
         if (room.unused) return;
 
         if (typeof openLayoutModal === 'function') {
@@ -171,18 +187,35 @@ function createRoomCard(room, dormitoryKey, floorNum) {
     return card;
 }
 
-function createStudentCard(student) {
+function createStudentCard(student, isPreferred = false) {
     const card = document.createElement('div');
     card.className = 'student-card';
     if (student.gender === '여') {
         card.classList.add('female');
     }
+    if (isPreferred) {
+        card.classList.add('preferred-match');
+    }
     card.draggable = true;
     card.dataset.studentName = student.name;
 
-    const name = document.createElement('div');
+    const nameRow = document.createElement('div');
+    nameRow.style.display = 'flex';
+    nameRow.style.alignItems = 'center';
+    nameRow.style.gap = '4px';
+
+    const name = document.createElement('span');
     name.className = 'student-name';
     name.textContent = student.name;
+    nameRow.appendChild(name);
+
+    if (isPreferred) {
+        const badge = document.createElement('span');
+        badge.className = 'preferred-badge';
+        badge.title = '선호학생 함께 배치됨';
+        badge.textContent = '♥';
+        nameRow.appendChild(badge);
+    }
 
     const info = document.createElement('div');
     info.className = 'student-info';
@@ -193,7 +226,7 @@ function createStudentCard(student) {
 
     info.textContent = infoParts.join(' · ');
 
-    card.appendChild(name);
+    card.appendChild(nameRow);
     if (infoParts.length > 0) {
         card.appendChild(info);
     }

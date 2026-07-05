@@ -742,6 +742,11 @@ body {
     }
 }
 
+@keyframes heartbeat {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.8; }
+}
+
 .loading-overlay p {
     margin-top: var(--spacing-lg);
     font-size: 1.125rem;
@@ -851,6 +856,28 @@ body {
 .student-card.female:hover {
     background-color: #ffe4f2;
     border-left-color: #db2777;
+}
+
+/* Preferred-match student highlight */
+.student-card.preferred-match {
+    border-left-color: #f59e0b;
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.06), transparent);
+}
+
+.student-card.preferred-match:hover {
+    border-left-color: #d97706;
+}
+
+.student-card.female.preferred-match {
+    border-left-color: #f59e0b;
+    background: linear-gradient(to right, rgba(245, 158, 11, 0.08), #fff0f7);
+}
+
+.preferred-badge {
+    font-size: 0.65rem;
+    color: #f59e0b;
+    flex-shrink: 0;
+    animation: heartbeat 1.8s ease-in-out infinite;
 }
 
 /* ===== Floor Configuration Controls ===== */
