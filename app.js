@@ -169,6 +169,7 @@ function handleTabClick(e) {
         renderFloorSelection(dormitory);
         renderRoomGrid(dormitory, firstFloor);
         updateFloorGenderButtons();
+        saveToLocalStorage();
     }
 }
 
@@ -181,6 +182,7 @@ function handleFloorClick(e) {
         AppState.currentFloor = floor;
         renderRoomGrid(AppState.currentDormitory, floor);
         updateFloorGenderButtons();
+        saveToLocalStorage();
     }
 }
 
@@ -234,6 +236,7 @@ async function handleAutoAssign() {
         renderAll();
         updateStats();
         showToast('자동 배치가 완료되었습니다', 'success');
+        saveToLocalStorage();
     } catch (error) {
         showToast(`배치 중 오류 발생: ${error.message}`, 'error');
     } finally {
@@ -253,6 +256,7 @@ function handleReset() {
     renderAll();
     updateStats();
     showToast('초기화가 완료되었습니다', 'success');
+    saveToLocalStorage();
 }
 
 function handleExport() {
@@ -319,6 +323,75 @@ function renderAll() {
     renderUnassignedList();
 }
 
+// ===== Local Storage Data Persistence =====
+function saveToLocalStorage() {
+    try {
+        const dormitoriesCopy = JSON.parse(JSON.stringify(AppState.dormitories));
+        for (const dormKey in dormitoriesCopy) {
+            const floors = dormitoriesCopy[dormKey].floors;
+            for (const floorNum in floors) {
+                const rooms = floors[floorNum].rooms;
+                for (const roomNum in rooms) {
+                    rooms[roomNum].students = [];
+                }
+            }
+        }
+
+        const dataToSave = {
+            students: AppState.students,
+            preferredGroups: AppState.preferredGroups,
+            avoidedPairs: AppState.avoidedPairs,
+            dormitories: dormitoriesCopy,
+            currentDormitory: AppState.currentDormitory,
+            currentFloor: AppState.currentFloor
+        };
+
+        localStorage.setItem('roomAssignmentState', JSON.stringify(dataToSave));
+    } catch (error) {
+        console.error('Failed to save state to localStorage:', error);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('roomAssignmentState');
+        if (!saved) return false;
+
+        const parsed = JSON.parse(saved);
+        if (!parsed) return false;
+
+        AppState.students = parsed.students || [];
+        AppState.preferredGroups = parsed.preferredGroups || [];
+        AppState.avoidedPairs = parsed.avoidedPairs || {};
+        AppState.dormitories = parsed.dormitories || {};
+        AppState.currentDormitory = parsed.currentDormitory || 'albatross';
+        AppState.currentFloor = parsed.currentFloor || '1';
+
+        // Restore student object references in rooms
+        AppState.students.forEach(student => {
+            if (student.assigned && student.dormitory && student.floor && student.room) {
+                const dorm = AppState.dormitories[student.dormitory];
+                if (dorm && dorm.floors[student.floor]) {
+                    const room = dorm.floors[student.floor].rooms[student.room];
+                    if (room) {
+                        if (!room.students.some(s => s.name === student.name)) {
+                            room.students.push(student);
+                        }
+                    }
+                }
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Failed to load state from localStorage:', error);
+        return false;
+    }
+}
+
+window.saveToLocalStorage = saveToLocalStorage;
+window.loadFromLocalStorage = loadFromLocalStorage;
+
 // ===== Floor Controls Helper Functions =====
 function setFloorGender(dormitory, floorNum, gender) {
     const floor = AppState.dormitories[dormitory].floors[floorNum];
@@ -349,6 +422,7 @@ function setFloorGender(dormitory, floorNum, gender) {
 
     renderRoomGrid(dormitory, floorNum);
     updateFloorGenderButtons();
+    saveToLocalStorage();
 }
 
 function updateFloorGenderButtons() {
@@ -367,7 +441,12 @@ function updateFloorGenderButtons() {
 
 // ===== Initialization =====
 function init() {
-    initializeDormitories();
+    const loaded = loadFromLocalStorage();
+    if (!loaded) {
+        initializeDormitories();
+        AppState.currentFloor = '1';
+        AppState.currentDormitory = 'albatross';
+    }
 
     // Initialize filters
     AppState.filters = { grade: 'all', gender: 'all' };
@@ -400,10 +479,25 @@ function init() {
 
     setupFileInputs();
 
-    // Initial render
-    AppState.currentFloor = '1';
-    renderFloorSelection('albatross');
-    renderRoomGrid('albatross', '1');
+    // Render active tab UI state based on loaded AppState
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.dormitory === AppState.currentDormitory) {
+            btn.classList.add('active');
+        }
+    });
+
+    renderFloorSelection(AppState.currentDormitory);
+
+    // Update floor buttons class to match loaded state
+    document.querySelectorAll('.floor-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.floor === AppState.currentFloor) {
+            btn.classList.add('active');
+        }
+    });
+
+    renderRoomGrid(AppState.currentDormitory, AppState.currentFloor);
     updateFloorGenderButtons();
     updateStats();
 }

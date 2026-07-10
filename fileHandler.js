@@ -19,6 +19,7 @@ function handleStudentListFile(file) {
                     showToast(`${AppState.students.length}명의 학생 데이터를 불러왔습니다`, 'success');
                     updateStats();
                     renderUnassignedList();
+                    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
                 },
                 error: function (error) {
                     showLoading(false);
@@ -78,6 +79,7 @@ function handlePreferredFile(file) {
                     parsePreferredGroups(results.data);
                     showLoading(false);
                     showToast(`${AppState.preferredGroups.length}개의 선호학생 그룹을 불러왔습니다`, 'success');
+                    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
                 },
                 error: function (error) {
                     showLoading(false);
@@ -161,6 +163,7 @@ function handleAvoidedFile(file) {
                     parseAvoidedPairs(results.data);
                     showLoading(false);
                     showToast(`기피학생 데이터를 불러왔습니다`, 'success');
+                    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
                 },
                 error: function (error) {
                     showLoading(false);

@@ -104,6 +104,7 @@ function saveLayout() {
 
     closeLayoutModal();
     renderRoomGrid(AppState.currentDormitory, AppState.currentFloor);
+    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
 }
 
 function checkLayoutMismatch(room, layout) {

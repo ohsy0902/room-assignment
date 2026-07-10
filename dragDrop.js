@@ -158,6 +158,7 @@ function handleRoomDrop(targetDormitory, targetFloor, targetRoom) {
 
     renderAll();
     updateStats();
+    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
 }
 
 function handleSidebarDrop() {
@@ -168,6 +169,7 @@ function handleSidebarDrop() {
 
     renderAll();
     updateStats();
+    if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
 }
 
 // Initialize when script loads

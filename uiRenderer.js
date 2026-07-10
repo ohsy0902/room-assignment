@@ -109,6 +109,7 @@ function createRoomCard(room, dormitoryKey, floorNum) {
         }
         room.unused = !room.unused;
         renderRoomGrid(dormitoryKey, floorNum);
+        if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
     });
 
     const capacity = document.createElement('div');
