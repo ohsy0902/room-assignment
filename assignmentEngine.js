@@ -272,8 +272,16 @@ function getAvailableRooms(scope, target) {
         }
     }
 
-    // Shuffle for randomness
+    // Shuffle for randomness (so rooms with equal number of students are randomly ordered)
     shuffleArray(rooms);
+
+    // Sort rooms by the number of currently assigned students descending.
+    // This fills already-occupied rooms first and maximizes the number of completely unused rooms.
+    rooms.sort((a, b) => {
+        const roomA = AppState.dormitories[a.dormitory].floors[a.floor].rooms[a.room];
+        const roomB = AppState.dormitories[b.dormitory].floors[b.floor].rooms[b.room];
+        return roomB.students.length - roomA.students.length;
+    });
 
     return rooms;
 }
