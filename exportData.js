@@ -24,10 +24,16 @@ function exportToExcel() {
             for (const room of rooms) {
                 const row = [`${room.number}호`];
 
+                // Sort students: by grade asc, then name asc (matching the Room Card UI sort order)
+                const sortedStudents = [...room.students].sort((a, b) => {
+                    if ((a.grade || 0) !== (b.grade || 0)) return (a.grade || 0) - (b.grade || 0);
+                    return (a.name || '').localeCompare(b.name || '', 'ko');
+                });
+
                 // Add students (up to 4)
                 for (let i = 0; i < 4; i++) {
-                    if (i < room.students.length) {
-                        const student = room.students[i];
+                    if (i < sortedStudents.length) {
+                        const student = sortedStudents[i];
                         row.push(student.name, student.grade || '-', student.gender || '-');
                     } else {
                         row.push('-', '-', '-');
