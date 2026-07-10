@@ -6,7 +6,12 @@ const AppState = {
     dormitories: {},
     currentDormitory: 'albatross',
     currentFloor: null,
-    isDragging: false
+    isDragging: false,
+    uploadedFiles: {
+        studentList: null,
+        preferred: null,
+        avoided: null
+    }
 };
 
 // ===== Dormitory Configuration =====
@@ -288,6 +293,7 @@ function setupFileInputs() {
         if (file) {
             document.getElementById('studentListFileName').textContent = file.name;
             document.getElementById('studentListFileName').classList.add('has-file');
+            AppState.uploadedFiles.studentList = file.name;
             handleStudentListFile(file);
         }
     });
@@ -297,6 +303,7 @@ function setupFileInputs() {
         if (file) {
             document.getElementById('preferredFileName').textContent = file.name;
             document.getElementById('preferredFileName').classList.add('has-file');
+            AppState.uploadedFiles.preferred = file.name;
             handlePreferredFile(file);
         }
     });
@@ -306,6 +313,7 @@ function setupFileInputs() {
         if (file) {
             document.getElementById('avoidedFileName').textContent = file.name;
             document.getElementById('avoidedFileName').classList.add('has-file');
+            AppState.uploadedFiles.avoided = file.name;
             handleAvoidedFile(file);
         }
     });
@@ -343,7 +351,8 @@ function saveToLocalStorage() {
             avoidedPairs: AppState.avoidedPairs,
             dormitories: dormitoriesCopy,
             currentDormitory: AppState.currentDormitory,
-            currentFloor: AppState.currentFloor
+            currentFloor: AppState.currentFloor,
+            uploadedFiles: AppState.uploadedFiles
         };
 
         localStorage.setItem('roomAssignmentState', JSON.stringify(dataToSave));
@@ -366,6 +375,7 @@ function loadFromLocalStorage() {
         AppState.dormitories = parsed.dormitories || {};
         AppState.currentDormitory = parsed.currentDormitory || 'albatross';
         AppState.currentFloor = parsed.currentFloor || '1';
+        AppState.uploadedFiles = parsed.uploadedFiles || { studentList: null, preferred: null, avoided: null };
 
         // Restore student object references in rooms
         AppState.students.forEach(student => {
@@ -440,6 +450,32 @@ function updateFloorGenderButtons() {
 }
 
 // ===== Initialization =====
+function restoreUploadedFilesUI() {
+    const files = AppState.uploadedFiles || {};
+
+    if (files.studentList) {
+        const el = document.getElementById('studentListFileName');
+        if (el) {
+            el.textContent = files.studentList;
+            el.classList.add('has-file');
+        }
+    }
+    if (files.preferred) {
+        const el = document.getElementById('preferredFileName');
+        if (el) {
+            el.textContent = files.preferred;
+            el.classList.add('has-file');
+        }
+    }
+    if (files.avoided) {
+        const el = document.getElementById('avoidedFileName');
+        if (el) {
+            el.textContent = files.avoided;
+            el.classList.add('has-file');
+        }
+    }
+}
+
 function init() {
     const loaded = loadFromLocalStorage();
     if (!loaded) {
@@ -497,7 +533,8 @@ function init() {
         }
     });
 
-    renderRoomGrid(AppState.currentDormitory, AppState.currentFloor);
+    restoreUploadedFilesUI();
+    renderAll();
     updateFloorGenderButtons();
     updateStats();
 }
